@@ -1,0 +1,194 @@
+#!/usr/bin/perl
+#
+# 2011-11-03 Nereu
+# 2011-11-05 Nereu - mytop
+#
+
+use DBI;
+
+$dbh = DBI->connect('DBI:mysql:database=mysql;host=localhost;unixsocket=/mysql/mysql.sock', 'root', '') || die "Could not connect to database: $DBI::errstr";
+
+$sth = $dbh->prepare("show processlist");
+$sth2 = $dbh->prepare("show global status");
+
+$last=0;
+$clear_string = `clear`;
+
+$S{"Com_select"}=0.0 ; $N{"Com_select"}=0;
+
+for(;;) {
+  print $clear_string;
+  $now=time();
+
+  $sth2->execute();
+  while ( $result2 = $sth2->fetchrow_hashref() ) { $q2{$result2->{Variable_name}}=$result2->{Value}; }
+
+  print "\n";
+
+  &pu;
+
+  &p("Queries");
+  &pa("Threads_connected");
+#  &pa("Open_files");
+#  &pa("Open_tables");
+  &p("Key_writes");
+  &p("Key_write_requests");
+  &p("Key_reads");
+  &p("Key_read_requests");
+  &pv("(Key_blocks_)used/used+unused",$q2{"Key_blocks_used"}/($q2{"Key_blocks_used"}+$q2{"Key_blocks_unused"})*100.0);
+  &pa("Key_blocks_used");
+  &pa("Key_blocks_unused");
+# print "-------------------------------------------\n";
+#  &p("Com_admin_commands");
+#  &p("Com_alter_table");
+#  &p("Com_change_db");
+#  &p("Com_commit");
+  &pm("Com_delete");
+  &pm("Com_insert");
+  &pm("Com_update");
+#  &p("Com_kill");
+#  &p("Com_lock_tables");
+#  &p("Com_rollback");
+  &pm("Com_select");
+  &pm("Com_set_option");
+#  &p("Com_show_collations");
+#  &p("Com_show_create_table");
+#  &p("Com_show_databases");
+#  &p("Com_show_fields");
+#  &p("Com_show_processlist");
+#  &p("Com_show_status");
+#  &p("Com_show_tables");
+#  &p("Com_show_triggers");
+#  &p("Com_show_variables");
+#  &p("Com_stmt_close");
+#  &p("Com_stmt_execute");
+#  &p("Com_stmt_prepare");
+#  &p("Com_unlock_tables");
+# print "-------------------------------------------\n";
+#   &pa("Innodb_buffer_pool_pages_dirty");
+#   &pa("Innodb_buffer_pool_pages_data");
+#   &pa("Innodb_buffer_pool_pages_flushed");
+#   &pa("Innodb_buffer_pool_pages_free");
+#   &pa("Innodb_buffer_pool_pages_misc");
+#   &pa("Innodb_buffer_pool_pages_total");
+##   &pa("Innodb_buffer_pool_read_ahead_rnd");
+#   &pa("Innodb_buffer_pool_read_ahead_seq");
+#   &p("Innodb_buffer_pool_read_requests");
+#   &pa("Innodb_buffer_pool_reads");
+#   &pa("Innodb_buffer_pool_wait_free");
+#   &pa("Innodb_buffer_pool_write_requests");
+#   &p("Innodb_data_fsyncs");
+#   &pa("Innodb_data_pending_fsyncs");
+#   &pa("Innodb_data_pending_reads");
+#   &pa("Innodb_data_pending_writes");
+#   &pa("Innodb_data_read");
+#   &pa("Innodb_data_reads");
+#   &p("Innodb_data_writes");
+#   &p("Innodb_data_written");
+#   &pa("Innodb_dblwr_pages_written");
+#   &pa("Innodb_dblwr_writes");
+#   &pa("Innodb_log_waits");
+#   &pa("Innodb_log_write_requests");
+#   &pa("Innodb_log_writes");
+#   &pa("Innodb_os_log_fsyncs");
+##   &pa("Innodb_os_log_pending_fsyncs");
+#   &pa("Innodb_os_log_pending_writes");
+#   &p("Innodb_os_log_written");
+#   &pa("Innodb_page_size");
+#   &p("Innodb_pages_created");
+#   &pa("Innodb_pages_read");
+#   &pa("Innodb_pages_written");
+#   &pa("Innodb_row_lock_current_waits");
+#   &pa("Innodb_row_lock_time");
+#   &pa("Innodb_row_lock_time_avg");
+#   &pa("Innodb_row_lock_time_max");
+#   &pa("Innodb_row_lock_waits");
+#   &pa("Innodb_rows_deleted");
+#   &pa("Innodb_rows_inserted");
+#   &pa("Innodb_rows_read");
+##   &pa("Innodb_rows_updated");
+# print "-------------------------------------------\n";
+# &pa("Qcache_free_blocks");
+# &pa("Qcache_free_memory");
+# &pa("Qcache_hits");
+# &pa("Qcache_inserts");
+# &pa("Qcache_lowmem_prunes");
+# &pa("Qcache_not_cached");
+# &pa("Qcache_queries_in_cache");
+# &pa("Qcache_total_blocks");
+
+  print "\n";
+
+  %q1 = %q2;
+  %Host_connected =  ( );
+
+  $sth->execute();
+  printf("\n%7s %8s %15s %10s %15s %5s %-15s %s\n","Id", "User", "Host", "DB", "Command", "Time", "State", "Info");
+  printf("%7s %8s %15s %10s %15s %5s %-15s %75s\n","-" x 7, "-" x 8, "-" x 15, "-" x 10, "-" x 15, "-" x 5, "-" x 15, "-" x 75);
+  while ( $result = $sth->fetchrow_hashref() ) {
+
+    $result->{Host} =~ s/.igrio.local.*$//;
+
+    if ( $result->{Command} ne "Sleep" ) {
+      printf("%7s %8s %15s %10s %15s %5s %-15s %-75s\n",
+             $result->{Id},
+             substr($result->{User},0,8),
+             $result->{Host},
+             $result->{db},
+             $result->{Command},
+             $result->{Time},
+             substr($result->{State},0,15),
+             substr($result->{Info},0,75)
+      );
+    }
+    $Host_connected{$result->{Host}}++;
+  }
+
+  print "\nThreads per host\n";
+  printf("%16s\n","-" x 16);
+  foreach ( sort { $Host_connected{$b} <=> $Host_connected{$a} } keys %Host_connected ) {
+    printf("%-15s : %s\n",$_,$Host_connected{$_});
+  }
+
+  sleep(2);
+  $last=$now;
+}
+
+#
+
+sub p  {
+  $delta= ( ($now - $last) == 0 ? 1 : ( $now - $last) );
+  printf("%28s/s = %.0f\n", $_[0], ($q2{$_[0]} - $q1{$_[0]}) / $delta );
+}
+
+sub pa {
+  printf("%30s = %.0f\n", $_[0], $q2{$_[0]});
+}
+
+sub pm  {
+  $delta= ( ($now - $last) == 0 ? 1 : ( $now - $last) );
+  if ( $q1{$_[0]} != 0 ) {
+    $S{$_[0]} += ($q2{$_[0]} - $q1{$_[0]})/$delta;
+    $N{$_[0]}++;
+    printf("%28s/s = %.0f media=%.1f\n", $_[0], ($q2{$_[0]} - $q1{$_[0]}) / $delta, $S{$_[0]}/$N{$_[0]} );
+  } else {
+    printf("%28s/s = %.0f media=---\n", $_[0], ($q2{$_[0]} - $q1{$_[0]}) / $delta);
+  }
+}
+
+
+sub pu {
+  local ( $up, $days, $hours, $mins );
+  local($s,$M,$H,$d,$m,$y,$wd,$yd,$isdst)=localtime(time() - $q2{"Uptime"});
+
+  $up=$q2{"Uptime"};
+  $days=int($up/86400);
+  $hours=int(($up - $days*86400) / 3600);
+  $mins=int(($up - $days*86400 - $hours*3600)/60);
+  printf("%30s = %.0f day(s), %.0f hour(s), %.0f min(s) (%04d/%02d/%02d %02d:%02d:%02d)\n",
+                                                 "Uptime", $days, $hours, $mins, 1900+$y,$m+1,$d,$H,$M,$s);
+}
+
+sub pv {
+  printf("%30s = %.1f%%\n", $_[0], $_[1]);
+}
